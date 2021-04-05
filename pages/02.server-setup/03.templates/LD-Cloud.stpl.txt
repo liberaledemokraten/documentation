@@ -1,0 +1,106 @@
+server {
+    listen      %ip%:%proxy_ssl_port% http2 ssl;
+    listen      [::]:%proxy_ssl_port% http2 ssl;
+    server_name %domain_idn% %alias_idn%;
+
+    ssl_certificate      %ssl_pem%;
+    ssl_certificate_key  %ssl_key%;
+    error_log  /var/log/%web_system%/domains/%domain%.error.log error;
+
+    location / {
+        proxy_set_header Host %domain%;
+        proxy_set_header X-Forwarded-For $remote_addr;
+
+        # replace the static resource URIs to load from the CDN
+        sub_filter_once off;
+        sub_filter '<link rel="stylesheet" href="/apps/accessibility/css/user-' '<link rel="stylesheet" href="/apps/accessibility/css/user-';
+        sub_filter 'defer src="/core/' 'defer src="https://cdn.lddus.de/file/ldcloud/core/';
+        sub_filter 'defer src="/apps/' 'defer src="https://cdn.lddus.de/file/ldcloud/apps/';
+        sub_filter '<link rel="stylesheet" href="/apps/' '<link rel="stylesheet" href="https://cdn.lddus.de/file/ldcloud/apps/';
+        sub_filter '<link rel="stylesheet" href="/core/' '<link rel="stylesheet" href="https://cdn.lddus.de/file/ldcloud/core/';
+        sub_filter '<img alt="" src="/core/img/' '<img alt="" src="https://cdn.lddus.de/file/ldcloud/core/img/';
+        sub_filter '<img alt="" src="/apps/settings/' '<img alt="" src="https://cdn.lddus.de/file/ldcloud/apps/settings/';
+
+        # if consent cookie already set, just return proxied content
+        if ($http_cookie ~* "consent" ) {
+            proxy_pass      https://%ip%:%web_ssl_port%;
+        }
+
+        # else, load the cookieconsent page
+        # using `return 302` directly doesn't work, so using @noconsent
+        # to do so, we have to "try" something nonexistent first
+        try_files $uri/$arg_key @noconsent;
+    }
+
+    # falling back to the origin server
+    location @fallback {
+        proxy_pass      https://%ip%:%web_ssl_port%;
+    }
+
+    location @noconsent {
+        # passing the originally requested path to the cookieconsent resource
+        return 302 "https://$host/cookieconsent?$request_uri";
+    }
+
+    location /cookieconsent {
+        root   %home%/%user%/web/%domain%/static;
+        expires max;
+
+        # passing down the originally requested path to the consent URI
+        sub_filter_once off;
+        sub_filter https://$host/datenschutz/consent https://$host/datenschutz/consent?$args;
+		
+        try_files $uri/index.html $uri.html @fallback;
+    }
+
+    # giving consent
+    location /datenschutz/consent {
+        add_header Set-Cookie 'consent=true;Domain=$host;Path=/;Max-Age=7776000;SameSite=Strict;HTTPOnly;Secure';
+        return 302 https://$host$args;
+    }
+
+    # revoking consent
+    location /cookieconsent/revoke {
+        add_header Ser Cookie 'consent=false;Domain=$host;Path=/;Max-Age=-3600;SameSite=Strict;HTTPOnly;Secure';
+        return 302 https://$host$args;
+    }
+
+    location /impressum {
+        root   %home%/%user%/web/%domain%/static;
+        expires max;
+        try_files $uri/index.html $uri.html @fallback;
+    }
+
+    location /datenschutz {
+        root   %home%/%user%/web/%domain%/static;
+        expires max;
+        try_files $uri/index.html $uri.html @fallback;
+    }
+
+    location ^~/static/ {
+        root   %home%/%user%/web/%domain%;
+        add_header Pragma "public";
+        add_header Cache-Control "public, max-age=604800, immutable";
+        expires max;
+#        return 403 "You called $uri but accessing the reource is forbidden.";
+       try_files $uri $uri/ =403;
+    }
+
+
+    location /error/ {
+        alias   %home%/%user%/web/%domain%/document_errors/;
+    }
+
+    location ~ /\.ht    {return 404;}
+    location ~ /\.svn/  {return 404;}
+    location ~ /\.git/  {return 404;}
+    location ~ /\.hg/   {return 404;}
+    location ~ /\.bzr/  {return 404;}
+
+    disable_symlinks if_not_owner from=%docroot%;
+
+    include %home%/%user%/conf/web/snginx.%domain%.conf*;
+
+    # Add some headers below. Especially, replace your CSP headers and add a Pragma header. The template cannot do that for you.
+    include %home%/%user%/conf/web/%domain%/*.conf;
+}
