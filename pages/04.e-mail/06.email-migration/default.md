@@ -21,7 +21,7 @@ metadata:
 When switching from one webspace to another or from one email provider to another, one of course wants to move existing data too. Obviously, some of them will be critical for your own business. There are several methods to do so. All of them require that the email accounts in both mailservers are still up and running.
 
 ## Assisted Migration (Recommended)
-This is most likely the easiest and safest methos for end-users. However, it requires that [IMAP Sync](./imap-sync) is configured as described in the linked page. Imap Sync will have to be triggered by using HTML & PHP afterwards.
+This is most likely the easiest and safest methos for end-users. However, it requires that [IMAP Sync](./imap-sync) is configured as described in the linked page. Imap Sync will have to be triggered by using HTML & PHP afterwards. A proof of concept on how to achieve that may be found on GitHub under [liberaledemokraten/php-email-migration](https://github.com/liberaledemokraten/php-email-migration).
 
 ## Manual Migration
 The manual approach is probably among the easiest to go as everyone would just register their accounts on both servers using the same email client (e.g. Thunderbird has the easiest approach here). Thenafter, he may just drag & drop copy or move all the emails from the old account to the new one. Each folder's content to the respective folder in the new account.
