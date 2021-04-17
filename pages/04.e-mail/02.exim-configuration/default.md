@@ -4,11 +4,40 @@ title: 'Exim Configuration'
 
 !!! Also see [SSL/TLS Configuration](../ssl-tls-configuration).
 
-Exim is a quite powerful MTA allowing you to define ACLs (Access Control Lists) with various conditions. Please see the [Specification of the Exim Mail Transfer Agent](https://www.exim.org/exim-html-current/doc/html/spec_html/) for more on configuring Exim.
+Exim is a quite powerful MTA allowing you to customize alot of things, e.g. by defining ACLs (Access Control Lists) with various conditions. Please see the [Specification of the Exim Mail Transfer Agent](https://www.exim.org/exim-html-current/doc/html/spec_html/) for more on configuring Exim.
+
+## Enable Suffix Aliasing
+### For Incoming Mails
+By enabling suffix-aliasing, one can set e.g. `mail+whatever@example.com` as an alias of `mail@example.com`. That way, all mails to `mail+somethingelse@example.com` will be received in the same inbox as `mail@example.com`. As you noticed, it does not matter what the plus sign is followed by. To enable this, go through the following steps:
+
+1. Log into Vesta CP as admin
+2. Go to "server" and select the configuration of exim
+3. Go to the section "ROUTERS CONFIGURATION" and find `localuser` preferences
+
+There, add the following lines:
+
+```exim
+localuser:
+  driver = accept
+  transport = local_delivery
+  condition = ${lookup{$local_part}lsearch{/etc/exim4/domains/$domain/passwd}{true}{false}}
+  local_part_suffix = +* : #* : =* : &*
+  local_part_suffix_optional
+```
+
+This will result in enabling suffixes prepended by either of the following characters: +, #, =, and &. You may also solely enable suffix aliases prepended by a `+` sign as that is the common and conventional way.
+
+### For Outgoing Mails
+We may want suffix aliases not only to be used for incoming mails, but our users to be able to send mails with them. To achieve that, we can define under `acl_smtp_mail` what shall be checked for outgoing mails from users authorized via SMTP. That is where you may add the following entry:
+
+```conf
+    # accept if FROM address is a suffix alias of authenticated address
+  accept
+    condition = ${if match {$sender_address} {(${local_part:$authenticated_id}\+.*@${domain:$authenticated_id})}}
+    logwrite = AUTH OK - FROM address $sender_address is a suffix alias of authenticated user
+```
 
 ## Allow Authenticated Users to Send from Aliases
-!!! [Suffix aliases](../suffix-aliasing) (i.e. `jane.doe+alias@example.com`) are also covered by this configuration.
-
 We are saving aliases and forwardings in the file `\etc\exim4\domains\<domain>\aliases`. The file looks like this:
 
 ```
@@ -24,14 +53,9 @@ forward@example.org:target@example.com
 
 In the sense of the above shown example, that'd mean that `target@example.com` could send an email with the FROM address `forward@example.org`. That's a case which is exclusively with forwardings possible as aliases are always within the same domain.
 
-To achieve that, we can define under `acl_smtp_mail` what shall be checked for outgoing mails from users authorized via SMTP. That is where you may add the following entry:
+As described for outgoing mails with the suffix alias, we can define under `acl_smtp_mail` what shall be checked for outgoing mails from users authorized via SMTP. There, you may add the following entry:
 
 ```conf
-    # accept if FROM address is a suffix alias of authenticated address
-  accept
-    condition = ${if match {$sender_address} {(${local_part:$authenticated_id}\+.*@${domain:$authenticated_id})}}
-    logwrite = AUTH OK - FROM address $sender_address is a suffix alias of authenticated user
-
   # accept if FROM address is an alias for the authenticated user $authenticated_id.
   accept
     condition = ${if and{\
@@ -44,7 +68,7 @@ To achieve that, we can define under `acl_smtp_mail` what shall be checked for o
 Please note that this option may require that both accounts are hosted on the same server. The domains however may be managed by different users. That is not a problem, as only permitted users are able to set the aliases and forwardings.
 
 ## Deny Outgoing Mails from Unknown Domains
-! Caution: The below suggestion may also affect incoming mails. See the second rule below to avoid that.
+! Caution: The below suggestion may also affect incoming mails. See the second rule below to avoid that. These `deny` rules should be processed _after_ processing `accept` rules except the default accept without any further conditions, if present.
 
 Just as described above, you may add the following entry under `acl_smtp_mail`:
 
