@@ -6,6 +6,9 @@ title: 'Exim Configuration'
 
 Exim is a quite powerful MTA allowing you to customize alot of things, e.g. by defining ACLs (Access Control Lists) with various conditions. Please see the [Specification of the Exim Mail Transfer Agent](https://www.exim.org/exim-html-current/doc/html/spec_html/) for more on configuring Exim.
 
+## Add Custom Headers
+In case you want to add a custom header when sending mails, you may do so in the `transports` section, e.g. under `remote_smtp`. To do so, just add the header using `headers_add = <headerName>: <headerValue>`.
+
 ## Enable Suffix Aliasing
 ### For Incoming Mails
 By enabling suffix-aliasing, one can set e.g. `mail+whatever@example.com` as an alias of `mail@example.com`. That way, all mails to `mail+somethingelse@example.com` will be received in the same inbox as `mail@example.com`. As you noticed, it does not matter what the plus sign is followed by. To enable this, go through the following steps:
@@ -56,8 +59,8 @@ In the sense of the above shown example, that'd mean that `target@example.com` c
 As described for outgoing mails with the suffix alias, we can define under `acl_smtp_mail` what shall be checked for outgoing mails from users authorized via SMTP. There, you may add the following entry:
 
 ```conf
-  # accept if FROM address is an alias for the authenticated user $authenticated_id.
-  accept
+# accept if FROM address is an alias for the authenticated user $authenticated_id.
+accept
     condition = ${if and{\
                    { exists{/etc/exim4/domains/${sender_address_domain}/aliases} }\
                    { eq{$authenticated_id} {${lookup{$sender_address}lsearch{/etc/exim4/domains/${sender_address_domain}/aliases}}} }\
@@ -73,7 +76,7 @@ Please note that this option may require that both accounts are hosted on the sa
 Just as described above, you may add the following entry under `acl_smtp_mail`:
 
 ```conf
-  deny
+deny
     ! condition = ${if exists{/etc/exim4/domains/${sender_address_domain}}}
     message = You are not authorized to send emails with FROM domain $sender_address_domain.
     logwrite = AUTH ERROR - authenticated user $authenticated_id set disallowed FROM domain $sender_address_domain
@@ -84,7 +87,7 @@ What this entry does is quite simple: It checks whether the FROM domain has been
 To ensure that this does not affect incoming mails, you should prepend the following rule:
 
 ```
-  accept
+accept
     condition = ${if eq{}{$authenticated_id}}
 ```
 
@@ -96,7 +99,7 @@ This entry aims to accept non-smtp mails (e.g. using sendmail) and incoming mail
 We may want to make sure an authorized user may only send emails with the identity of itself. With this rule, it will be impossible for an authorized user to use another FROM address. To achieve that, add the following entry similarly to above:
 
 ```conf
-  deny
+deny
     ! condition = ${if eq{$authenticated_id} {$sender_address}}
     message = You are not authorized to send emails for $sender_address.
     logwrite = AUTH ERROR - authenticated user $authenticated_id is not permitted to set FROM address $sender_address
@@ -104,5 +107,26 @@ We may want to make sure an authorized user may only send emails with the identi
 
 Please see the addition to the previous rule. If you have already prepended it once, you won't have to add it again for each rule, though.
 
-## Add Custom Headers
-In case you want to add a custom header when sending mails, you may do so in the `transports` section, e.g. under `remote_smtp`. To do so, just add the header using `headers_add = <headerName>: <headerValue>`.
+## Blacklist Specific Adresses
+In our case, there were specific senders that regularly sent spam messages. We decided to block any incoming mails entirely from them instead of deleting them. This can be done either by utilizing filter rules or simply solving the matter at its root: rejecting any incoming mails from those addresses by the MTA.
+
+To achieve that, we are utilizing a blacklist file in the following syntax:
+
+```
+joe.doe@example.com:block
+jane.doe@example.org:block
+```
+
+Similarly to above, we can use an entry in the ACL looking into the file. As the above methods work fine, we may go for the non-standard way of adding the rule in the `acl_smtp_mail`, though `acl_check_spammers` might be the more appropriate place.
+
+```conf
+deny
+    condition = ${if and{\
+                   { exists{/etc/exim4/blacklist} }\
+                   { eq {block} {${lookup{$sender_address}lsearch{/etc/exim4/blacklist}}} }\
+                 }}
+    message = Rejected by the recipient server.
+    logwrite = Rejected - FROM address $sender_address has been blacklisted.
+```
+
+!!! Note that the address won't be blacklisted if the value does not equal to "block". That may be useful if you wish to only temporarily unblacklist an address as you can change the value slightly to achieve that instead of deleting the entry entirely.
