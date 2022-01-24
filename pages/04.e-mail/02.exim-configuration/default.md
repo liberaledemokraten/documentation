@@ -6,6 +6,24 @@ title: 'Exim Configuration'
 
 Exim is a quite powerful MTA allowing you to customize alot of things, e.g. by defining ACLs (Access Control Lists) with various conditions. Please see the [Specification of the Exim Mail Transfer Agent](https://www.exim.org/exim-html-current/doc/html/spec_html/) for more on configuring Exim.
 
+## Remove Client IP from Received
+The `Received` header may include the user's IP and perhaps even ISP's hostname by default. This causes privacy issues. Be reminded that the IP address alone is considered personal data according to the German Federal Court of Justice (BGH-Urteil VI ZR 135/13). Though other providers such as T-Online and Gmail are observed to act in violation to this basic principle, let's be better than them and enhance the users' privacy.
+
+To achieve this, add the following to exim's main configuration:
+
+```exim
+received_header_text = Received: \
+  from localhost ([127.0.0.1] helo=mail.example.com)\n\t\
+  by $primary_hostname \
+  ${if def:received_protocol {with $received_protocol}} \
+  ${if def:tls_in_cipher {($tls_in_cipher)\n\t}}\
+  (Exim $version_number)\n\t\
+  ${if def:sender_address \
+  {(envelope-from <$sender_address>)\n\t}}\
+  id $message_exim_id\
+  ${if def:received_for {\n\tfor $received_for}}
+```
+
 ## Add Custom Headers
 In case you want to add a custom header when sending mails, you may do so in the `transports` section, e.g. under `remote_smtp`. To do so, just add the header using `headers_add = <headerName>: <headerValue>`.
 
