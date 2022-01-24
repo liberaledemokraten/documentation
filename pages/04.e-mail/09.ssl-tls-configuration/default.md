@@ -35,7 +35,7 @@ We are done as far as the preperations go. Now, we have to configure dovecot and
 ### Dovecot
 Go to the control panel and enter the server settings on the top of the screen. Now search for dovecot and press the "configure" button. Seach for the editable file ending to `ssl.conf ` and enter the following:
 
-```conf
+```dovecot
 ssl = yes
 ssl_cert = </usr/local/vesta/ssl/mail.crt
 ssl_key = </usr/local/vesta/ssl/mail.key
@@ -45,15 +45,24 @@ ssl_prefer_server_ciphers = yes
 ssl_dh = </usr/local/vesta/ssl/dhparam.pem
 ```
 
+To exclusively accept encrypted IMAP and POP3 connections, enter `ssl=required` instead of `ssl=yes`.
+
 ### Exim
 Go to the control panel and enter the server settings on the top of the screen. Now search for exim and press the "configure" button. Now search for "tls_" and modify the settings as follows:
 
-```conf
+```exim
 tls_advertise_hosts = *
 tls_certificate = /usr/local/vesta/ssl/mail.crt
 tls_privatekey = /usr/local/vesta/ssl/mail.key
 # tls_require_ciphers = NORMAL:%LATEST_RECORD_VERSION:-VERS-SSL3.0:-VERS-TLS1.0:-VERS-TLS1.1
 tls_dhparam = /usr/local/vesta/ssl/dhparam.pem
+```
+
+Consider adding the following to disallow SMTP authentication via unencrypted connections:
+
+```exim
+
+auth_advertise_hosts = ${if eq{$tls_cipher}{}{}{*}}
 ```
 
 !!! Note that exim in Debian comes with GnuTLS as per default instead of with OpenSSL. So we cannot modify alot, unfortunately. Especially as GnuTLS tends to be buggy. If it works, uncomment the `tls_require_ciphers` part, but make sure you test sending and receiving emails afterwards.

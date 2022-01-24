@@ -13,7 +13,8 @@ To achieve this, add the following to exim's main configuration:
 
 ```exim
 received_header_text = Received: \
-  from localhost ([127.0.0.1] helo=mail.example.com)\n\t\
+  from ${if def:authenticated_id {$primary_hostname ([127.0.0.1]) (helo=example.com)\n\t}}\
+  ${if eq{$authenticated_id}{} {$sender_rcvhost (helo=$sender_helo_name)\n\t}}\
   by $primary_hostname \
   ${if def:received_protocol {with $received_protocol}} \
   ${if def:tls_in_cipher {($tls_in_cipher)\n\t}}\

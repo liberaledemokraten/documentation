@@ -107,13 +107,23 @@ The basic principle is that we create a system filter file. In our case it will 
 ```exim
 
 # Exim filter
-if
-$h_subject: contains "Make money" or
-$h_precedence: is "junk" or
-$sender_address matches "(spammer|spambot)@"
+if $h_subject: contains "Make money"
+or $h_precedence: is "junk"
+or $sender_address matches "(spammer|spambot)@"
 then
   fail text "Message rejected by recipient server with status 5.7.28. Contact postmaster[at]liberale-demokraten.de for further details."
   seen finish
+endif
+```
+
+Alternatively, you can also mark incoming mail as spam instead of rejecting it:
+
+```exim
+
+then
+  headers add    "X-Spam-Status: Yes\n\
+                  X-Spam-Info: The server has identified incoming mail as spam"
+  finish
 endif
 ```
 
