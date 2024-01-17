@@ -57,6 +57,13 @@ wget https://c.myvestacp.com/vst-install-debian.sh
 ./vst-install-debian.sh --nginx yes --apache yes --phpfpm no --named yes --remi yes --vsftpd yes --proftpd no --iptables yes --fail2ban yes --quota yes --exim yes --dovecot yes --spamassassin yes --clamav yes --softaculous yes --mysql yes --postgresql yes --hostname example.com --email mail@example.com --password deed
 ```
 
+If using HestiaCP - a fork of VestaCP:
+
+```
+wget https://raw.githubusercontent.com/hestiacp/hestiacp/release/install/hst-install.sh
+bash hst-install.sh --port 8083 --hostname example.com --email mail@example.com --password deed --multiphp yes --postgresql yes --sieve yes --quota yes
+```
+
 Now wait until the installation is finished.
 
 !!! The defined hostname above is the main domain of the server.
