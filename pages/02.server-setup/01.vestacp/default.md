@@ -31,11 +31,14 @@ NOTE: If using Debian 10, go for myVestaCP instead. The configuration is pretty 
 You might also want to add the official nginx and sury's PHP repositories to have up to date software. To do so, go through the following steps:
 
 ```
-apt-get install gnupg2 ca-certificates lsb-release apt-transport-https
-echo "deb http://nginx.org/packages/debian `lsb_release -cs` nginx" | tee /etc/apt/sources.list.d/nginx.list
-echo "deb  https://packages.sury.org/php `lsb_release -cs` main" | tee /etc/apt/sources.list.d/php.list
-curl -fsSL https://nginx.org/keys/nginx_signing.key | apt-key add -
-curl -fsSL https://packages.sury.org/php/apt.gpg | apt-key add -
+apt-get install gnupg2 ca-certificates lsb-release apt-transport-https vim
+
+curl -fsSL https://packages.sury.org/php/apt.gpg | sudo gpg --dearmor -o /usr/share/keyrings/sury_php.gpg
+curl -fsSL https://nginx.org/keys/nginx_signing.key | sudo gpg --dearmor -o /usr/share/keyrings/nginx.gpg
+
+echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/sury_php.gpg] https://packages.sury.org/php `lsb_release -cs` main" | tee /etc/apt/sources.list.d/sury_php.list
+echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/nginx.gpg] http://nginx.org/packages/debian `lsb_release -cs` nginx" | tee /etc/apt/sources.list.d/nginx.list
+
 apt-get update
 apt-get upgrade
 ```
